@@ -17,6 +17,7 @@
                  preconditioners.  */
 
 #include <math.h>
+#include <time.h>
 #include "_hypre_utilities.h"
 #include "HYPRE_krylov.h"
 #include "HYPRE.h"
@@ -303,6 +304,10 @@ int main (int argc, char *argv[])
    {
       int num_iterations;
       double final_res_norm;
+	  clock_t start,finish;
+	  double time_used;
+
+	  start  = clock();
 
       /* Create solver */
       HYPRE_BoomerAMGCreate(&solver);
@@ -332,13 +337,19 @@ int main (int argc, char *argv[])
 
       /* Destroy solver */
       HYPRE_BoomerAMGDestroy(solver);
+	  finish = clock();
+	  time_used = (finish - start)/1000.0;
+	  printf("Time used by AMG:%.6f\n",time_used);
    }
    /* PCG */
    else if (solver_id == 50)
    {
       int num_iterations;
       double final_res_norm;
+	  clock_t start,finish;
+	  double time_used;
 
+	  start = clock();
       /* Create solver */
       HYPRE_ParCSRPCGCreate(MPI_COMM_WORLD, &solver);
 
@@ -366,13 +377,19 @@ int main (int argc, char *argv[])
 
       /* Destroy solver */
       HYPRE_ParCSRPCGDestroy(solver);
+	  finish = clock();
+	  time_used = (finish - start)/1000.;
+	  printf("Time used by PCG:%.6f\n",time_used);
    }
    /* PCG with AMG preconditioner */
    else if (solver_id == 1)
    {
       int num_iterations;
       double final_res_norm;
+	  clock_t start,finish;
+	  double time_used;
 
+	  start = clock();
       /* Create solver */
       HYPRE_ParCSRPCGCreate(MPI_COMM_WORLD, &solver);
 
@@ -414,6 +431,9 @@ int main (int argc, char *argv[])
       /* Destroy solver and preconditioner */
       HYPRE_ParCSRPCGDestroy(solver);
       HYPRE_BoomerAMGDestroy(precond);
+	  finish = clock();
+	  time_used = (finish - start)/1000.;
+	  printf("Time used by AMG-PCG:%.6f\n",time_used);
    }
    /* PCG with Parasails Preconditioner */
    else if (solver_id == 8)
@@ -425,7 +445,10 @@ int main (int argc, char *argv[])
       double   sai_threshold = 0.1;
       double   sai_filter = 0.05;
       int      sai_sym = 1;
+	  clock_t start,finish;
+	  double time_used;
 
+	  start = clock();
       /* Create solver */
       HYPRE_ParCSRPCGCreate(MPI_COMM_WORLD, &solver);
 
@@ -468,6 +491,9 @@ int main (int argc, char *argv[])
       /* Destory solver and preconditioner */
       HYPRE_ParCSRPCGDestroy(solver);
       HYPRE_ParaSailsDestroy(precond);
+	  finish = clock();
+	  time_used = (finish - start)/1000.;
+	  printf("Time used by ParaSails-PCG:%.6f\n",time_used);
    }
    /* Flexible GMRES with  AMG Preconditioner */
    else if (solver_id == 61)
@@ -476,8 +502,10 @@ int main (int argc, char *argv[])
       double final_res_norm;
       int    restart = 30;
       int    modify = 1;
+	  clock_t start,finish;
+	  double time_used;
 
-
+	  start = clock();
       /* Create solver */
       HYPRE_ParCSRFlexGMRESCreate(MPI_COMM_WORLD, &solver);
 
@@ -529,6 +557,9 @@ int main (int argc, char *argv[])
       /* Destory solver and preconditioner */
       HYPRE_ParCSRFlexGMRESDestroy(solver);
       HYPRE_BoomerAMGDestroy(precond);
+	  finish = clock();
+	  time_used = (finish - start)/1000.;
+	  printf("Time used by AMG-FlexGMRES:%.6f\n",time_used);
 
    }
    else
