@@ -1,21 +1,47 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-int main()
+int main(int argc, char* argv[])
 {
 	FILE *f_input;
-	char *i_filename;
+	char* i_filename;
 	double result;
 	FILE *f_output;
-	char *o_filename;
+	char o_filename[255];
 	int n,N;
 	double x,y,z,h;
 	int i;
-	
-	n=55;
+	int arg_index = 0;
+	n = -1;
+	i_filename = " ";
+	//o_filename = " ";
+	while(arg_index < argc)
+	{
+		if(strcmp(argv[arg_index], "-n") == 0)
+		{
+			arg_index++;
+			n = atoi(argv[arg_index]);
+		}
+		else if(strcmp(argv[arg_index], "-input") == 0)
+		{
+			arg_index++;
+			i_filename = argv[arg_index];
+		}
+
+		else 
+			arg_index++;
+	}
+
+	if(n == -1)
+	{
+		printf("Error: n not init!\n");
+		exit(-1);
+	}
+
 	
 	/*读取结果文件，注意这个文件应该放在.c文件同一个文件夹*/
-	i_filename = "result.txt";	//先进行赋值之后，之后需要用argv代替
+	//i_filename = "result.txt";	//先进行赋值之后，之后需要用argv代替
 	if ((f_input = fopen(i_filename,"r")) == NULL)
 	{
 		printf("Error: can't open solution result file %s\n", i_filename);
@@ -25,7 +51,7 @@ int main()
 	
 	/*建立输出文件，这个文件即需要的tecplot格式的dat文件*/
 
-	o_filename = "tec_result.dat";
+	sprintf(o_filename,"tec_%d.dat",n);
 	if ((f_output = fopen(o_filename,"w")) == NULL)
 	{
 		printf("Error: can't open solution result file %s\n", o_filename);

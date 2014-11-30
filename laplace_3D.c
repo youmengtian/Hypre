@@ -1,27 +1,13 @@
-/*
-   Example 5
-
-   Interface:    Linear-Algebraic (IJ)
-
-   Compile with: make ex5
-
-   Sample run:   mpirun -np 4 ex5
-
-   Description:  This example solves the 2-D Laplacian problem with zero boundary
-                 conditions on an n x n grid.  The number of unknowns is N=n^2.
-                 The standard 5-point stencil is used, and we solve for the
-                 interior nodes only.
-
-                 This example solves the same problem as Example 3.  Available
-                 solvers are AMG, PCG, and PCG with AMG or Parasails
-                 preconditioners.  */
-
-/*以上是Hypre中的example 5所给出的描述，希望做到以下几点扩充*/
-/***********************************************************************************/
+/*******************************************************************************************************/
+//
+// 实现以下功能：
 // 1、可以对各种方法的运行时间进行统计；
-// 2、可以将计算扩展到3-D Laplacian方程，计算网格为n x n x n，未知数个数 N = n^3
-// 3、对solver进行扩展以实现更多的算法；
+// 2、计算3-D Laplacian方程，计算网格为n x n x n，未知数个数 N = n^3
+// 3、对solver进行扩展以实现更多的算法：AMG、AMG-PCG、AMG-BiCGSTAB、AMG-FlexGMRES、ParaSails-PCG、PCG；
 // 4、以Tecplot结构化网格形式输出计算结果。
+//
+/*******************************************************************************************************/
+
 
 #include <math.h>
 #include <time.h>
@@ -116,9 +102,10 @@ int main (int argc, char *argv[])
          printf("  -solver <ID>        : solver ID\n");
          printf("                        0  - AMG (default) \n");
          printf("                        1  - AMG-PCG\n");
-         printf("                        8  - ParaSails-PCG\n");
-         printf("                        50 - PCG\n");
-         printf("                        61 - AMG-FlexGMRES\n");
+		 printf("                        2  - AMG-BiCGSTAB\n");
+         printf("                        3  - ParaSails-PCG\n");
+         printf("                        4 - PCG\n");
+         printf("                        5 - AMG-FlexGMRES\n");
          printf("  -print_init       : print the matrix and rhs\n");
 		 printf("  -print_system     : print the solution x\n");
          printf("\n");
@@ -427,7 +414,7 @@ if(print_init)
 	  printf("Time used by AMG:%.6f\n",time_used);
    }
    /* PCG */
-   else if (solver_id == 50)
+   else if (solver_id == 4)
    {
       int num_iterations;
       double final_res_norm;
@@ -520,8 +507,63 @@ if(print_init)
 	  time_used = (finish - start)/1000.;
 	  printf("Time used by AMG-PCG:%.6f\n",time_used);
    }
+
+   /* BiCGSTAB with AMG preconditioner */
+   else if(solver_id == 2)
+   {
+	   int num_iterations;
+      double final_res_norm;
+	  clock_t start,finish;
+	  double time_used;
+
+	  start = clock();
+      /* Create solver */
+      HYPRE_ParCSRBiCGSTABCreate(MPI_COMM_WORLD, &solver);
+
+      /* Set some parameters (See Reference Manual for more parameters) */
+      HYPRE_BiCGSTABSetMaxIter(solver, 1000); /* max iterations */
+      HYPRE_BiCGSTABSetTol(solver, 1e-7); /* conv. tolerance */
+      HYPRE_BiCGSTABSetPrintLevel(solver, 2); /* print solve info */
+      HYPRE_BiCGSTABSetLogging(solver, 1); /* needed to get run info later */
+
+      /* Now set up the AMG preconditioner and specify any parameters */
+      HYPRE_BoomerAMGCreate(&precond);
+      HYPRE_BoomerAMGSetPrintLevel(precond, 1); /* print amg solution info */
+      HYPRE_BoomerAMGSetCoarsenType(precond, 6);
+      HYPRE_BoomerAMGSetRelaxType(precond, 6); /* Sym G.S./Jacobi hybrid */
+      HYPRE_BoomerAMGSetNumSweeps(precond, 1);
+      HYPRE_BoomerAMGSetTol(precond, 0.0); /* conv. tolerance zero */
+      HYPRE_BoomerAMGSetMaxIter(precond, 1); /* do only one iteration! */
+
+      /* Set the PCG preconditioner */
+      HYPRE_BiCGSTABSetPrecond(solver, (HYPRE_PtrToSolverFcn) HYPRE_BoomerAMGSolve,
+                          (HYPRE_PtrToSolverFcn) HYPRE_BoomerAMGSetup, precond);
+
+      /* Now setup and solve! */
+      HYPRE_ParCSRBiCGSTABSetup(solver, parcsr_A, par_b, par_x);
+      HYPRE_ParCSRBiCGSTABSolve(solver, parcsr_A, par_b, par_x);
+
+      /* Run info - needed logging turned on */
+      HYPRE_BiCGSTABGetNumIterations(solver, &num_iterations);
+      HYPRE_BiCGSTABGetFinalRelativeResidualNorm(solver, &final_res_norm);
+      if (myid == 0)
+      {
+         printf("\n");
+         printf("Iterations = %d\n", num_iterations);
+         printf("Final Relative Residual Norm = %e\n", final_res_norm);
+         printf("\n");
+      }
+
+      /* Destroy solver and preconditioner */
+      HYPRE_ParCSRBiCGSTABDestroy(solver);
+      HYPRE_BoomerAMGDestroy(precond);
+	  finish = clock();
+	  time_used = (finish - start)/1000.;
+	  printf("Time used by AMG-BiCGSTAB:%.6f\n",time_used);
+   }
+
    /* PCG with Parasails Preconditioner */
-   else if (solver_id == 8)
+   else if (solver_id == 3)
    {
       int    num_iterations;
       double final_res_norm;
@@ -581,7 +623,7 @@ if(print_init)
 	  printf("Time used by ParaSails-PCG:%.6f\n",time_used);
    }
    /* Flexible GMRES with  AMG Preconditioner */
-   else if (solver_id == 61)
+   else if (solver_id == 5)
    {
       int    num_iterations;
       double final_res_norm;
@@ -668,7 +710,7 @@ if(print_init)
       /* get the local solution */
       HYPRE_IJVectorGetValues(x, nvalues, rows, values);
 
-      sprintf(filename, "%s_%06d.txt", "solution", myid);
+      sprintf(filename, "%s_%d.txt", "solution", n);
       if ((file = fopen(filename, "w")) == NULL)
       {
          printf("Error: can't open output file %s\n", filename);
